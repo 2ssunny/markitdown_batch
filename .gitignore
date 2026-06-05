@@ -13,3 +13,7 @@ app/history.json
 
 # Config file containing API keys
 app/config.json
+
+# Local project documentation and models
+project_log.md
+app/tessdata_best/

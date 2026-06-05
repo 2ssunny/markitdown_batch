@@ -129,8 +129,10 @@ def sync_to_notion(notion_client, db_id, file_name, drive_link, md_content=""):
         children = []
         if md_content:
             # Chunk text to avoid Notion's 2000 character limit per block
+            # We use 1900 to be safe against newline (\r\n) or unicode length calculation differences
             # Max 100 blocks per request
-            chunks = [md_content[i:i+2000] for i in range(0, len(md_content), 2000)][:100] 
+            chunk_size = 1900
+            chunks = [md_content[i:i+chunk_size] for i in range(0, len(md_content), chunk_size)][:100] 
             for chunk in chunks:
                 children.append({
                     "object": "block",

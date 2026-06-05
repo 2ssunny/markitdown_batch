@@ -16,6 +16,8 @@ import pytesseract
 from PIL import Image
 import io
 import urllib.request
+import subprocess
+import sys
 
 pytesseract.pytesseract.tesseract_cmd = r'C:\Program Files\Tesseract-OCR\tesseract.exe'
 
@@ -170,7 +172,53 @@ def download_missing_models(tessdata_dir, ocr_lang):
             except Exception as e:
                 print(f"      -> [OCR Error] Failed to download {lang} model: {e}")
 
-def extract_text_with_ocr(pdf_path, ocr_lang='eng+kor'):
+def ensure_easyocr_installed():
+    try:
+        import easyocr
+    except ImportError:
+        print("      -> [Info] EasyOCR is not installed. Installing it dynamically (this may take a few minutes)...")
+        subprocess.check_call([sys.executable, "-m", "pip", "install", "easyocr"])
+        print("      -> [Success] EasyOCR installed successfully.")
+
+def map_lang_for_easyocr(ocr_lang):
+    mapping = {'eng': 'en', 'kor': 'ko', 'jpn': 'ja', 'fra': 'fr', 'spa': 'es'}
+    langs = []
+    for l in ocr_lang.split('+'):
+        langs.append(mapping.get(l, l))
+    return langs
+
+def extract_text_with_easyocr(pdf_path, ocr_lang='eng+kor'):
+    ensure_easyocr_installed()
+    import easyocr
+    import numpy as np
+    
+    langs = map_lang_for_easyocr(ocr_lang)
+    print(f"      -> [OCR] Extracting text using EasyOCR (Language: {langs})...")
+    
+    try:
+        reader = easyocr.Reader(langs)
+    except Exception as e:
+        print(f"      -> [OCR Error] Failed to initialize EasyOCR: {e}")
+        return ""
+        
+    text_content = ""
+    try:
+        doc = fitz.open(pdf_path)
+        for i, page in enumerate(doc):
+            pix = page.get_pixmap(dpi=300)
+            img_data = pix.tobytes("png")
+            img = Image.open(io.BytesIO(img_data)).convert('RGB')
+            img_np = np.array(img)
+            
+            result = reader.readtext(img_np, detail=0, paragraph=True)
+            page_text = "\n".join(result)
+            text_content += f"\n\n--- Page {i+1} ---\n\n" + page_text
+        doc.close()
+    except Exception as e:
+        print(f"      -> [OCR Error] Failed to OCR pdf with EasyOCR: {e}")
+    return text_content.strip()
+
+def extract_text_with_tesseract(pdf_path, ocr_lang='eng+kor'):
     app_dir = Path(__file__).parent
     tessdata_dir = app_dir / 'tessdata_best'
     
@@ -279,7 +327,13 @@ def main():
             if (not md_content or len(md_content.strip()) < 50) and file_path.suffix.lower() == '.pdf':
                 print("  - [Info] No readable text found. Falling back to Local OCR...")
                 ocr_lang_setting = config.get('OCR_LANG', 'eng+kor') if config else 'eng+kor'
-                ocr_text = extract_text_with_ocr(str(file_path), ocr_lang=ocr_lang_setting)
+                ocr_engine = config.get('OCR_ENGINE', 'tesseract').lower() if config else 'tesseract'
+                
+                if ocr_engine == 'easyocr':
+                    ocr_text = extract_text_with_easyocr(str(file_path), ocr_lang=ocr_lang_setting)
+                else:
+                    ocr_text = extract_text_with_tesseract(str(file_path), ocr_lang=ocr_lang_setting)
+                    
                 if ocr_text:
                     md_content = ocr_text
                     print("  - [Success] Local OCR extracted text successfully.")

@@ -5,6 +5,7 @@ A utility that batch-converts documents (PDF, DOCX, XLSX, PPTX, etc.) in a local
 ## Features
 - **Batch Conversion**: Converts all supported documents in the `input_files` directory to `.md`.
 - **Local OCR Fallback (NEW)**: Automatically detects scanned PDFs (images without a text layer) and extracts text using Tesseract OCR.
+- **Dual Engine OCR Architecture**: Choose between `tesseract` (default, fast) and `easyocr` (high accuracy for complex/handwritten text). The script dynamically installs EasyOCR dependencies only if requested.
 - **Dynamic OCR Model Download**: Specify any language in `config.json` (e.g., `jpn`, `fra`), and the script will automatically download the required high-accuracy `tessdata_best` models from the official GitHub repository on the fly.
 - **Duplicate Prevention**: Uses SHA-256 hashing to skip files that have already been converted.
 - **Google Drive Upload**: Automatically uploads the generated Markdown files to a specific Google Drive folder.
@@ -55,7 +56,9 @@ You need an Internal Integration Token and a Database ID to sync files to Notion
 4. **Configure the script:**
    - Rename `app/config.example.json` to **`app/config.json`**.
    - Open `app/config.json` and paste your copied Integration Secret into `NOTION_API_KEY` and your Database ID into `NOTION_DATABASE_ID`.
-   - **`OCR_LANG`**: Define the target language for OCR (e.g., `"eng"`, `"kor"`, `"eng+kor"`, `"jpn"`). If the required high-accuracy models are missing locally, the script will automatically download them for you.
+   - **`OCR_ENGINE`**: Set to `"tesseract"` (default) or `"easyocr"`.
+     > **⚠️ WARNING for EasyOCR users:** `easyocr` installs PyTorch (~2GB). If you do not have a CUDA-enabled NVIDIA GPU configured, it will run on your CPU and can be **extremely slow**. Only use `easyocr` if you have CUDA setup or absolutely need high-accuracy handwriting extraction.
+   - **`OCR_LANG`**: Define the target language for OCR (e.g., `"eng"`, `"kor"`, `"eng+kor"`, `"jpn"`). If the required high-accuracy models are missing locally, the script will automatically download them for you. The script also automatically maps Tesseract codes to EasyOCR codes.
 
 ### 3. Run the Tool
 Once both API credentials are in the `app/` folder:

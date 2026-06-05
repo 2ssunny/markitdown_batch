@@ -14,15 +14,55 @@ A utility that batch-converts documents (PDF, DOCX, XLSX, PPTX, etc.) in a local
 - Google Cloud Project with Google Drive API enabled (OAuth 2.0 Desktop Client).
 - Notion Integration Token & Database ID.
 
-## Setup
-1. Clone this repository.
-2. Put your Google Drive `credentials.json` into the `app/` directory.
-3. Rename `app/config.example.json` to `app/config.json` and fill in your Notion API details.
-4. Run `run_converter.bat`. The batch script will automatically create a virtual environment, install dependencies, and run the tool.
+## Setup Guide
 
-## Usage
-- **Upload**: Drop files you want to convert into the `input_files` folder and run `run_converter.bat`.
-- **Check/Cleanup**: Run `run_checker.bat` to scan Google Drive for deleted files and sync deletions to your local history and Notion database.
+To use this utility, you must authenticate with both Google Drive and Notion. Follow the detailed steps below.
+
+### 1. Google Drive API Authentication (`credentials.json`)
+You need a `credentials.json` file so the script can upload files to your Google Drive.
+
+1. Go to the [Google Cloud Console](https://console.cloud.google.com/).
+2. Create a **New Project**.
+3. Navigate to **APIs & Services > Library**, search for **Google Drive API**, and click **Enable**.
+4. Go to **APIs & Services > OAuth consent screen**. Choose **External** (or Internal if you have a Google Workspace) and fill out the required basic information.
+5. Go to **APIs & Services > Credentials**.
+6. Click **+ CREATE CREDENTIALS** and select **OAuth client ID**.
+7. Choose **Desktop app** as the Application type, give it a name, and click **Create**.
+8. Download the JSON file, rename it to **`credentials.json`**, and place it inside the **`app/`** folder of this repository.
+
+### 2. Notion API Integration (`config.json`)
+You need an Internal Integration Token and a Database ID to sync files to Notion.
+
+1. **Create an Integration (Bot):**
+   - Go to [Notion My Integrations](https://www.notion.so/my-integrations).
+   - Click **+ New integration**. Select the workspace you want to use, give the integration a name, and ensure the type is **Internal** (or Secret Token).
+   - Once created, copy the **Internal Integration Secret** (it starts with `secret_...`).
+
+2. **Prepare your Notion Database:**
+   - In your Notion workspace, create a new Database (Full page or Inline).
+   - You must have exactly these two properties (case-sensitive):
+     - **`Name`** (Property type: `Title` / `제목`)
+     - **`URL`** (Property type: `URL`)
+   - Click the `...` menu in the top right of your database page, select **Add connections (연결 추가)**, and search for the name of the integration you just created to invite it to the database.
+
+3. **Get the Database ID:**
+   - Copy the link to your Notion database page.
+   - The URL will look like this: `https://www.notion.so/myworkspace/a1b2c3d4e5f6g7h8i9j0?v=...`
+   - The long alphanumeric string between your workspace name and the `?v=` is your **Database ID** (in this example, `a1b2c3d4e5f6g7h8i9j0`).
+
+4. **Configure the script:**
+   - Rename `app/config.example.json` to **`app/config.json`**.
+   - Open `app/config.json` and paste your copied Integration Secret into `NOTION_API_KEY` and your Database ID into `NOTION_DATABASE_ID`.
+
+### 3. Run the Tool
+Once both API credentials are in the `app/` folder:
+1. Drop files you want to convert into the `input_files/` folder.
+2. Run `run_converter.bat`. 
+   *(The batch script will automatically create a virtual environment, install dependencies, and execute the conversion and sync.)*
+
+## Usage Details
+- **Upload (`run_converter.bat`)**: Converts files, uploads to Google Drive, writes the markdown content to the Notion Database, and moves the original files to `processed_files/`.
+- **Check/Cleanup (`run_checker.bat`)**: Scans Google Drive for files that you might have deleted. If it detects a deleted file, it will sync this deletion to your local history and move the corresponding Notion page to the trash.
 
 ## Supported Formats
 `.pdf`, `.docx`, `.pptx`, `.xlsx`, `.csv`, `.json`, `.xml`, `.html`, `.epub`, `.zip`, `.txt`, `.jpg`, `.png`

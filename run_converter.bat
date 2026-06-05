@@ -19,13 +19,14 @@ if not exist "venv\Scripts\activate.bat" (
     echo Activating virtual environment and installing dependencies...
     call venv\Scripts\activate.bat
     python -m pip install --upgrade pip
-    pip install -r requirements.txt
+    pip install -r app\requirements.txt
 ) else (
     echo Activating existing virtual environment...
     call venv\Scripts\activate.bat
 )
 
 echo [3/3] Running the converter script...
+cd app
 python converter.py
 
 echo.

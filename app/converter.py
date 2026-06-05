@@ -62,10 +62,10 @@ def get_google_drive_service():
         else:
             if not os.path.exists('credentials.json'):
                 print("================================================================")
-                print("[ERROR] 'credentials.json' 파일을 찾을 수 없습니다.")
-                print("Google Cloud Console에서 프로젝트를 생성하고, Google Drive API를 활성화한 뒤")
-                print("OAuth 2.0 클라이언트 ID(데스크톱 앱)의 자격 증명 파일을 다운로드하여")
-                print("이 폴더에 'credentials.json' 이라는 이름으로 저장해주세요.")
+                print("[ERROR] 'credentials.json' not found.")
+                print("Create a project in Google Cloud Console, enable Google Drive API,")
+                print("download the OAuth 2.0 Client ID (Desktop App) credentials file,")
+                print("and save it in the 'app' folder as 'credentials.json'.")
                 print("================================================================")
                 return None
             flow = InstalledAppFlow.from_client_secrets_file('credentials.json', SCOPES)
@@ -82,19 +82,19 @@ def get_or_create_folder(service, folder_name):
         files = response.get('files', [])
         
         if files:
-            print(f"[*] 기존 Google Drive 폴더 '{folder_name}'를 찾았습니다. (ID: {files[0]['id']})")
+            print(f"[*] Found existing Google Drive folder '{folder_name}' (ID: {files[0]['id']})")
             return files[0]['id']
         else:
-            print(f"[*] 새 Google Drive 폴더 '{folder_name}'를 생성하는 중...")
+            print(f"[*] Creating new Google Drive folder '{folder_name}'...")
             file_metadata = {
                 'name': folder_name,
                 'mimeType': 'application/vnd.google-apps.folder'
             }
             folder = service.files().create(body=file_metadata, fields='id').execute()
-            print(f"[*] 폴더 생성 완료. (ID: {folder.get('id')})")
+            print(f"[*] Folder created successfully. (ID: {folder.get('id')})")
             return folder.get('id')
     except HttpError as error:
-        print(f"[ERROR] 폴더 검색/생성 중 오류 발생: {error}")
+        print(f"[ERROR] Failed to search/create folder: {error}")
         return None
 
 def upload_file(service, file_path, folder_id):
@@ -109,7 +109,7 @@ def upload_file(service, file_path, folder_id):
         file = service.files().create(body=file_metadata, media_body=media, fields='id, webViewLink').execute()
         return True, file.get('webViewLink'), file.get('id')
     except HttpError as error:
-        print(f"[ERROR] 파일 업로드 중 오류 발생 {file_path}: {error}")
+        print(f"[ERROR] Failed to upload {file_path}: {error}")
         return False, None, None
 
 def sync_to_notion(notion_client, db_id, file_name, drive_link, md_content=""):
@@ -143,21 +143,22 @@ def sync_to_notion(notion_client, db_id, file_name, drive_link, md_content=""):
         response = notion_client.pages.create(**new_page)
         return True, response.get("id")
     except Exception as e:
-        print(f"[ERROR] Notion 동기화 중 오류 발생: {str(e)}")
-        print("참고: 노션 데이터베이스에 'Name'(제목 속성)과 'URL'(URL 속성)이 존재하는지 확인하세요.")
+        print(f"[ERROR] Failed to sync to Notion: {str(e)}")
+        print("Note: Ensure your Notion Database has a Title property named 'Name' and a URL property named 'URL'.")
         return False, None
 
 def main():
-    base_dir = Path(__file__).parent
+    app_dir = Path(__file__).parent
+    base_dir = app_dir.parent
     input_dir = base_dir / 'input_files'
     processed_dir = base_dir / 'processed_files'
-    history_file = base_dir / 'history.json'
+    history_file = app_dir / 'history.json'
     
     input_dir.mkdir(exist_ok=True)
     processed_dir.mkdir(exist_ok=True)
     
     print("----------------------------------------------------------------")
-    print("MarkItDown 구글 드라이브 일괄 변환 및 노션 동기화 유틸리티 시작")
+    print("MarkItDown Google Drive Batch Converter & Notion Sync Utility")
     print("----------------------------------------------------------------")
     
     # Load config for Notion
@@ -168,75 +169,75 @@ def main():
         try:
             notion = Client(auth=config['NOTION_API_KEY'])
             notion_db_id = config['NOTION_DATABASE_ID']
-            print("\n[*] Notion API 설정이 확인되었습니다. (동기화 활성화됨)")
+            print("\n[*] Notion API settings verified. (Sync Enabled)")
         except Exception as e:
-            print(f"\n[WARNING] Notion 클라이언트 초기화 실패: {e}")
+            print(f"\n[WARNING] Failed to initialize Notion client: {e}")
     else:
-        print("\n[*] 'config.json'에 Notion API 설정이 없어 노션 동기화는 건너뜁니다.")
+        print("\n[*] No Notion API settings found in 'config.json'. Skipping Notion sync.")
     
     # Authenticate and get Drive service
-    print("\n[단계 1] Google Drive 인증 진행 중...")
+    print("\n[Step 1] Authenticating with Google Drive...")
     service = get_google_drive_service()
     if not service:
-        print("Google Drive 인증에 실패하여 스크립트를 종료합니다.")
+        print("Google Drive authentication failed. Exiting script.")
         return
         
     folder_id = get_or_create_folder(service, DRIVE_FOLDER_NAME)
     if not folder_id:
-        print("대상 폴더를 찾거나 생성하지 못해 스크립트를 종료합니다.")
+        print("Failed to find or create target folder. Exiting script.")
         return
 
     # Get files to process
     files_to_process = [f for f in input_dir.iterdir() if f.is_file()]
     if not files_to_process:
-        print(f"\n[알림] '{input_dir.name}' 폴더에 처리할 파일이 없습니다.")
+        print(f"\n[Info] No files found in '{input_dir.name}' directory to process.")
         return
         
-    print(f"\n[단계 2] 총 {len(files_to_process)}개의 파일을 확인했습니다.")
-    print("MarkItDown 초기화 중...")
+    print(f"\n[Step 2] Found {len(files_to_process)} files to process.")
+    print("Initializing MarkItDown...")
     md = MarkItDown()
     
     history_data = load_history(history_file)
     
     for file_path in files_to_process:
         if file_path.suffix.lower() not in SUPPORTED_EXTENSIONS:
-            print(f"  -> [스킵] 지원하지 않는 확장자입니다: {file_path.name}")
+            print(f"  -> [Skip] Unsupported file extension: {file_path.name}")
             continue
             
-        print(f"\n▶ 처리 중: {file_path.name}")
+        print(f"\n▶ Processing: {file_path.name}")
         
         # Check duplicate via hash
         file_hash = get_file_hash(file_path)
         if file_hash in history_data:
-            print(f"  -> [알림] 이미 변환/업로드가 완료된 중복 파일입니다. (스킵)")
+            print(f"  -> [Info] Duplicate file detected. Already converted and uploaded. (Skipping)")
             continue
             
-        md_file_path = base_dir / f"{file_path.stem}.md"
+        md_file_path = app_dir / f"{file_path.stem}.md"
         
         try:
             # Convert
-            print(f"  - Markdown으로 변환 중...")
+            print(f"  - Converting to Markdown...")
             result = md.convert(str(file_path))
             md_content = result.text_content
             with open(md_file_path, 'w', encoding='utf-8') as f:
                 f.write(md_content)
                 
             # Upload
-            print(f"  - Google Drive '{DRIVE_FOLDER_NAME}' 폴더로 업로드 중...")
+            print(f"  - Uploading to Google Drive '{DRIVE_FOLDER_NAME}' folder...")
             success, drive_link, drive_file_id = upload_file(service, str(md_file_path), folder_id)
             
             # Clean up & Sync
             if success:
-                print("  - 구글 드라이브 업로드 완료.")
+                print("  - Google Drive upload successful.")
                 
                 # Notion Sync
                 notion_page_id = None
                 if notion and notion_db_id and drive_link:
-                    print("  - 노션 데이터베이스에 동기화 및 본문 삽입 중...")
+                    print("  - Syncing to Notion Database and embedding content...")
                     sync_success, page_id = sync_to_notion(notion, notion_db_id, md_file_path.name, drive_link, md_content)
                     if sync_success:
                         notion_page_id = page_id
-                        print("  - [완료] 노션 동기화 성공!")
+                        print("  - [Success] Notion sync completed!")
                 
                 os.remove(md_file_path)
                 
@@ -255,12 +256,12 @@ def main():
                 }
                 save_history(history_file, history_data)
                 
-                print(f"  - [완료] 원본 파일을 '{processed_dir.name}' 폴더로 이동했습니다.")
+                print(f"  - [Success] Moved original file to '{processed_dir.name}' folder.")
             else:
-                print("  - [실패] 업로드에 실패했습니다. 다음 시도를 위해 파일을 유지합니다.")
+                print("  - [Failed] Upload failed. Keeping files locally for retry.")
                 
         except Exception as e:
-            print(f"  - [ERROR] '{file_path.name}' 처리 중 오류 발생: {str(e)}")
+            print(f"  - [ERROR] Failed to process '{file_path.name}': {str(e)}")
 
 if __name__ == '__main__':
     main()

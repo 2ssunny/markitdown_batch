@@ -38,7 +38,7 @@ def get_google_drive_service():
             creds.refresh(Request())
         else:
             if not os.path.exists('credentials.json'):
-                print("[ERROR] 'credentials.json' 파일을 찾을 수 없습니다.")
+                print("[ERROR] 'credentials.json' not found.")
                 return None
             flow = InstalledAppFlow.from_client_secrets_file('credentials.json', SCOPES)
             creds = flow.run_local_server(port=0)
@@ -47,22 +47,22 @@ def get_google_drive_service():
     return build('drive', 'v3', credentials=creds)
 
 def main():
-    base_dir = Path(__file__).parent
-    history_file = base_dir / 'history.json'
+    app_dir = Path(__file__).parent
+    history_file = app_dir / 'history.json'
     
     print("----------------------------------------------------------------")
-    print("구글 드라이브 동기화 상태 점검 도구 (Checker) 시작")
+    print("Google Drive Sync Checker Utility")
     print("----------------------------------------------------------------")
     
     history_data = load_history(history_file)
     if not history_data:
-        print("[알림] 점검할 변환 기록(history.json)이 없습니다.")
+        print("[Info] No conversion history (history.json) found to check.")
         return
         
-    print("\n[단계 1] Google Drive 인증 진행 중...")
+    print("\n[Step 1] Authenticating with Google Drive...")
     drive_service = get_google_drive_service()
     if not drive_service:
-        print("Google Drive 인증 실패.")
+        print("Google Drive authentication failed.")
         return
 
     # Load config for Notion
@@ -71,11 +71,11 @@ def main():
     if config and config.get('NOTION_API_KEY'):
         try:
             notion = Client(auth=config['NOTION_API_KEY'])
-            print("[*] Notion API 설정 확인됨. (노션 삭제 연동 활성화)")
+            print("[*] Notion API settings verified. (Notion deletion sync enabled)")
         except Exception:
             pass
 
-    print(f"\n[단계 2] 총 {len(history_data)}개의 파일 기록을 검사합니다...\n")
+    print(f"\n[Step 2] Scanning {len(history_data)} file records from history...\n")
     
     hashes_to_remove = []
     
@@ -85,50 +85,50 @@ def main():
         notion_page_id = record.get('notion_page_id')
         
         if not drive_file_id:
-            print(f"▶ {original_name}: 구글 드라이브 ID가 기록되어 있지 않아 검사 스킵.")
+            print(f"▶ {original_name}: No Google Drive ID recorded. Skipping.")
             continue
             
-        print(f"▶ 검사 중: {original_name}")
+        print(f"▶ Checking: {original_name}")
         is_deleted = False
         
         try:
             # Check file in Google Drive
             file = drive_service.files().get(fileId=drive_file_id, fields='trashed').execute()
             if file.get('trashed', False):
-                print("  - [감지] 구글 드라이브 휴지통으로 이동된 것을 확인했습니다.")
+                print("  - [Detected] File is in Google Drive Trash.")
                 is_deleted = True
             else:
-                print("  - [정상] 구글 드라이브에 파일이 존재합니다.")
+                print("  - [Normal] File still exists in Google Drive.")
         except HttpError as e:
             if e.resp.status == 404:
-                print("  - [감지] 구글 드라이브에서 파일이 완전히 삭제된 것을 확인했습니다.")
+                print("  - [Detected] File is permanently deleted from Google Drive.")
                 is_deleted = True
             else:
-                print(f"  - [오류] 드라이브 상태 확인 중 에러: {e}")
+                print(f"  - [Error] Failed to check Drive file status: {e}")
                 
         if is_deleted:
             # Archive Notion Page if exists
             if notion and notion_page_id:
                 try:
                     notion.pages.update(page_id=notion_page_id, archived=True)
-                    print("  - [처리 완료] 연결된 노션 페이지를 삭제(휴지통 이동)했습니다.")
+                    print("  - [Success] Archived (deleted) the associated Notion page.")
                 except Exception as ne:
-                    print(f"  - [오류] 노션 페이지 삭제 실패: {ne}")
+                    print(f"  - [Error] Failed to archive Notion page: {ne}")
             elif not notion_page_id:
-                 print("  - [알림] 연결된 노션 페이지 ID가 없어 노션 처리는 건너뜁니다.")
+                 print("  - [Info] No associated Notion page ID. Skipping Notion cleanup.")
             
             # Remove from local history
             hashes_to_remove.append(file_hash)
-            print("  - [처리 완료] 로컬 기록(history.json)에서 삭제 예약됨.")
+            print("  - [Success] Marked for removal from local history (history.json).")
 
     # Apply removals
     if hashes_to_remove:
         for h in hashes_to_remove:
             del history_data[h]
         save_history(history_file, history_data)
-        print(f"\n[결과] 총 {len(hashes_to_remove)}개의 삭제된 파일 기록이 로컬에서 지워졌습니다.")
+        print(f"\n[Result] Removed {len(hashes_to_remove)} deleted file records from local history.")
     else:
-        print("\n[결과] 지워진 파일이 없습니다. 모두 정상 동기화 상태입니다.")
+        print("\n[Result] No deleted files found. Everything is synchronized.")
 
 if __name__ == '__main__':
     main()

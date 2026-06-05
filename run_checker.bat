@@ -14,6 +14,7 @@ echo Activating existing virtual environment...
 call venv\Scripts\activate.bat
 
 echo Running the sync checker script...
+cd app
 python checker.py
 
 echo.

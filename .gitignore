@@ -3,13 +3,13 @@ __pycache__/
 *.pyc
 
 # Google Drive Credentials
-credentials.json
-token.json
+app/credentials.json
+app/token.json
 
 # Local processing folders
 input_files/
 processed_files/
-history.json
+app/history.json
 
 # Config file containing API keys
-config.json
+app/config.json

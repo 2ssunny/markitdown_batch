@@ -3,7 +3,7 @@ setlocal
 
 cd /d "%~dp0"
 
-echo [1/5] Checking Tesseract OCR installation...
+echo [1/4] Checking Tesseract OCR installation...
 if not exist "C:\Program Files\Tesseract-OCR\tesseract.exe" (
     echo Downloading Tesseract OCR Installer. Please wait a minute...
     curl.exe -L -o tesseract_installer.exe "https://github.com/tesseract-ocr/tesseract/releases/download/5.5.0/tesseract-ocr-w64-setup-5.5.0.20241111.exe"
@@ -25,26 +25,11 @@ if not exist "C:\Program Files\Tesseract-OCR\tesseract.exe" (
     )
 )
 
-echo [2/5] Downloading tessdata_best models (High Accuracy OCR)...
-if not exist "app\tessdata_best" mkdir "app\tessdata_best"
-if not exist "app\tessdata_best\eng.traineddata" (
-    echo Downloading eng.traineddata - 14.5 MB...
-    curl.exe -L -o "app\tessdata_best\eng.traineddata" "https://github.com/tesseract-ocr/tessdata_best/raw/main/eng.traineddata"
-)
-if not exist "app\tessdata_best\kor.traineddata" (
-    echo Downloading kor.traineddata - 34.6 MB...
-    curl.exe -L -o "app\tessdata_best\kor.traineddata" "https://github.com/tesseract-ocr/tessdata_best/raw/main/kor.traineddata"
-)
-if not exist "app\tessdata_best\osd.traineddata" (
-    echo Downloading osd.traineddata - 10.3 MB...
-    curl.exe -L -o "app\tessdata_best\osd.traineddata" "https://github.com/tesseract-ocr/tessdata_best/raw/main/osd.traineddata"
-)
-
-echo [3/5] Checking input_files and processed_files directories...
+echo [2/4] Checking input_files and processed_files directories...
 if not exist "input_files" mkdir "input_files"
 if not exist "processed_files" mkdir "processed_files"
 
-echo [4/5] Checking Python virtual environment...
+echo [3/4] Checking Python virtual environment...
 if not exist "venv\Scripts\activate.bat" (
     echo Virtual environment not found. Creating one...
     python -m venv venv
@@ -62,7 +47,7 @@ if not exist "venv\Scripts\activate.bat" (
     call venv\Scripts\activate.bat
 )
 
-echo [5/5] Running the converter script...
+echo [4/4] Running the converter script...
 cd app
 python converter.py
 

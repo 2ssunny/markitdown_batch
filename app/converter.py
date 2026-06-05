@@ -15,6 +15,7 @@ import fitz  # PyMuPDF
 import pytesseract
 from PIL import Image
 import io
+import urllib.request
 
 pytesseract.pytesseract.tesseract_cmd = r'C:\Program Files\Tesseract-OCR\tesseract.exe'
 
@@ -153,12 +154,35 @@ def sync_to_notion(notion_client, db_id, file_name, drive_link, md_content=""):
         print("Note: Ensure your Notion Database has a Title property named 'Name' and a URL property named 'URL'.")
         return False, None
 
+def download_missing_models(tessdata_dir, ocr_lang):
+    tessdata_dir.mkdir(exist_ok=True)
+    langs = ocr_lang.split('+')
+    if 'osd' not in langs:
+        langs.append('osd')
+        
+    for lang in langs:
+        model_file = tessdata_dir / f"{lang}.traineddata"
+        if not model_file.exists():
+            print(f"      -> [OCR] Downloading missing model '{lang}' (High Accuracy)...")
+            url = f"https://github.com/tesseract-ocr/tessdata_best/raw/main/{lang}.traineddata"
+            try:
+                urllib.request.urlretrieve(url, model_file)
+            except Exception as e:
+                print(f"      -> [OCR Error] Failed to download {lang} model: {e}")
+
 def extract_text_with_ocr(pdf_path, ocr_lang='eng+kor'):
     app_dir = Path(__file__).parent
     tessdata_dir = app_dir / 'tessdata_best'
-    custom_config = f'--tessdata-dir "{tessdata_dir}"'
     
-    print(f"      -> [OCR] Extracting text using Tesseract (Language: {ocr_lang}, Model: tessdata_best)...")
+    download_missing_models(tessdata_dir, ocr_lang)
+    
+    # Use environment variable to avoid Windows path quoting issues
+    if tessdata_dir.exists():
+        os.environ['TESSDATA_PREFIX'] = str(tessdata_dir)
+        print(f"      -> [OCR] Extracting text using Tesseract (Language: {ocr_lang}, Model: tessdata_best)...")
+    else:
+        print(f"      -> [OCR] Extracting text using Tesseract (Language: {ocr_lang}, Model: default)...")
+
     text_content = ""
     try:
         doc = fitz.open(pdf_path)
@@ -166,10 +190,7 @@ def extract_text_with_ocr(pdf_path, ocr_lang='eng+kor'):
             pix = page.get_pixmap(dpi=300)
             img_data = pix.tobytes("png")
             img = Image.open(io.BytesIO(img_data))
-            if tessdata_dir.exists():
-                page_text = pytesseract.image_to_string(img, lang=ocr_lang, config=custom_config)
-            else:
-                page_text = pytesseract.image_to_string(img, lang=ocr_lang)
+            page_text = pytesseract.image_to_string(img, lang=ocr_lang)
             text_content += f"\n\n--- Page {i+1} ---\n\n" + page_text
         doc.close()
     except Exception as e:

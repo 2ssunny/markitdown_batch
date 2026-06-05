@@ -5,6 +5,7 @@ A utility that batch-converts documents (PDF, DOCX, XLSX, PPTX, etc.) in a local
 ## Features
 - **Batch Conversion**: Converts all supported documents in the `input_files` directory to `.md`.
 - **Local OCR Fallback (NEW)**: Automatically detects scanned PDFs (images without a text layer) and extracts text using Tesseract OCR.
+- **Dynamic OCR Model Download**: Specify any language in `config.json` (e.g., `jpn`, `fra`), and the script will automatically download the required high-accuracy `tessdata_best` models from the official GitHub repository on the fly.
 - **Duplicate Prevention**: Uses SHA-256 hashing to skip files that have already been converted.
 - **Google Drive Upload**: Automatically uploads the generated Markdown files to a specific Google Drive folder.
 - **Notion Sync**: Syncs the uploaded Google Drive links and embedded Markdown blocks to a specified Notion Database.
@@ -54,6 +55,7 @@ You need an Internal Integration Token and a Database ID to sync files to Notion
 4. **Configure the script:**
    - Rename `app/config.example.json` to **`app/config.json`**.
    - Open `app/config.json` and paste your copied Integration Secret into `NOTION_API_KEY` and your Database ID into `NOTION_DATABASE_ID`.
+   - **`OCR_LANG`**: Define the target language for OCR (e.g., `"eng"`, `"kor"`, `"eng+kor"`, `"jpn"`). If the required high-accuracy models are missing locally, the script will automatically download them for you.
 
 ### 3. Run the Tool
 Once both API credentials are in the `app/` folder:

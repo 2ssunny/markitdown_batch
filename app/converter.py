@@ -179,6 +179,10 @@ def ensure_easyocr_installed():
         import easyocr
     except ImportError:
         print("      -> [Info] EasyOCR is not installed. Installing it dynamically (this may take a few minutes)...")
+        # Windows 환경에서 CUDA(GPU) 가속을 확실하게 활성화하기 위해 PyTorch CUDA 전용 버전을 먼저 설치합니다.
+        print("      -> [Info] Installing PyTorch with CUDA support...")
+        subprocess.check_call([sys.executable, "-m", "pip", "install", "torch", "torchvision", "torchaudio", "--index-url", "https://download.pytorch.org/whl/cu118"])
+        print("      -> [Info] Installing EasyOCR module...")
         subprocess.check_call([sys.executable, "-m", "pip", "install", "easyocr"])
         print("      -> [Success] EasyOCR installed successfully.")
 

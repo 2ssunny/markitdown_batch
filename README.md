@@ -83,7 +83,7 @@ This project utilizes several powerful open-source tools:
 1. [**MarkItDown**](https://github.com/microsoft/markitdown) by Microsoft. 
    - Used for document conversion. Released under the **MIT License**. We respect and acknowledge Microsoft's original work which makes the core functionality of this batch utility possible.
 
-2. [**Tesseract OCR**](https://github.com/tesseract-ocr/tesseract) by Google and the Tesseract community.
+2. [**Tesseract OCR**](https://github.com/tesseract-ocr/tesseract) by Tesseract.
    - Used for the Local OCR fallback functionality to extract text from scanned PDFs. Released under the **Apache License 2.0**.
 
 This batch utility is provided as-is, expanding upon the core capabilities of these tools to include automation, OCR fallbacks, cloud storage, and Notion synchronization.

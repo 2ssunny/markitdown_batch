@@ -1,13 +1,14 @@
 # MarkItDown Batch Converter & Uploader
 
-A utility that batch-converts documents (PDF, DOCX, XLSX, PPTX, etc.) in a local folder to Markdown using Microsoft's `markitdown`, uploads them to Google Drive, and syncs the links to a Notion Database.
+A utility that batch-converts documents (PDF, DOCX, XLSX, PPTX, etc.) in a local folder to Markdown using Microsoft's `markitdown`, uploads them to Google Drive, and syncs the links to a Notion Database. It also features a built-in Local OCR fallback to extract text from scanned PDFs.
 
 ## Features
 - **Batch Conversion**: Converts all supported documents in the `input_files` directory to `.md`.
+- **Local OCR Fallback (NEW)**: Automatically detects scanned PDFs (images without a text layer) and extracts text using Tesseract OCR.
 - **Duplicate Prevention**: Uses SHA-256 hashing to skip files that have already been converted.
 - **Google Drive Upload**: Automatically uploads the generated Markdown files to a specific Google Drive folder.
 - **Notion Sync**: Syncs the uploaded Google Drive links and embedded Markdown blocks to a specified Notion Database.
-- **Auto Cleanup & Sync Check**: Moves successfully processed original files to a `processed_files` directory. Includes a checker to clean up history and Notion pages if the file is deleted from Google Drive.
+- **Auto Cleanup & Sync Check**: Moves successfully processed original files to a `processed_files` directory. Includes a checker (`run_checker.bat`) to clean up history and Notion pages if the file is deleted from Google Drive.
 
 ## Prerequisites
 - Python 3.8+
@@ -58,10 +59,11 @@ You need an Internal Integration Token and a Database ID to sync files to Notion
 Once both API credentials are in the `app/` folder:
 1. Drop files you want to convert into the `input_files/` folder.
 2. Run `run_converter.bat`. 
-   *(The batch script will automatically create a virtual environment, install dependencies, and execute the conversion and sync.)*
+   *(The batch script will automatically download Tesseract OCR if it's missing, create a virtual environment, install dependencies, and execute the conversion and sync.)*
+   - **Note on OCR:** When installing Tesseract, make sure to expand "Additional language data" and check "Korean" to support Korean text extraction from scanned PDFs.
 
 ## Usage Details
-- **Upload (`run_converter.bat`)**: Converts files, uploads to Google Drive, writes the markdown content to the Notion Database, and moves the original files to `processed_files/`.
+- **Upload (`run_converter.bat`)**: Converts files, falls back to OCR for scanned PDFs, uploads to Google Drive, writes the markdown content to the Notion Database, and moves the original files to `processed_files/`.
 - **Check/Cleanup (`run_checker.bat`)**: Scans Google Drive for files that you might have deleted. If it detects a deleted file, it will sync this deletion to your local history and move the corresponding Notion page to the trash.
 
 ## Supported Formats
@@ -70,6 +72,13 @@ Once both API credentials are in the `app/` folder:
 ---
 
 ## Acknowledgments & License
-This project utilizes [**MarkItDown**](https://github.com/microsoft/markitdown) by Microsoft for document conversion. `markitdown` is an open-source tool released under the **MIT License**. We respect and acknowledge Microsoft's original work which makes the core functionality of this batch utility possible.
 
-This batch utility is provided as-is, expanding upon the core conversion capabilities of MarkItDown to include automation, cloud storage, and Notion synchronization.
+This project utilizes several powerful open-source tools:
+
+1. [**MarkItDown**](https://github.com/microsoft/markitdown) by Microsoft. 
+   - Used for document conversion. Released under the **MIT License**. We respect and acknowledge Microsoft's original work which makes the core functionality of this batch utility possible.
+
+2. [**Tesseract OCR**](https://github.com/tesseract-ocr/tesseract) by Google and the Tesseract community.
+   - Used for the Local OCR fallback functionality to extract text from scanned PDFs. Released under the **Apache License 2.0**.
+
+This batch utility is provided as-is, expanding upon the core capabilities of these tools to include automation, OCR fallbacks, cloud storage, and Notion synchronization.

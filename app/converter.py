@@ -11,6 +11,12 @@ from googleapiclient.discovery import build
 from googleapiclient.http import MediaFileUpload
 from googleapiclient.errors import HttpError
 from notion_client import Client
+import fitz  # PyMuPDF
+import pytesseract
+from PIL import Image
+import io
+
+pytesseract.pytesseract.tesseract_cmd = r'C:\Program Files\Tesseract-OCR\tesseract.exe'
 
 # If modifying these scopes, delete the file token.json.
 SCOPES = ['https://www.googleapis.com/auth/drive.file', 'https://www.googleapis.com/auth/drive.readonly']
@@ -147,6 +153,29 @@ def sync_to_notion(notion_client, db_id, file_name, drive_link, md_content=""):
         print("Note: Ensure your Notion Database has a Title property named 'Name' and a URL property named 'URL'.")
         return False, None
 
+def extract_text_with_ocr(pdf_path, ocr_lang='eng+kor'):
+    app_dir = Path(__file__).parent
+    tessdata_dir = app_dir / 'tessdata_best'
+    custom_config = f'--tessdata-dir "{tessdata_dir}"'
+    
+    print(f"      -> [OCR] Extracting text using Tesseract (Language: {ocr_lang}, Model: tessdata_best)...")
+    text_content = ""
+    try:
+        doc = fitz.open(pdf_path)
+        for i, page in enumerate(doc):
+            pix = page.get_pixmap(dpi=300)
+            img_data = pix.tobytes("png")
+            img = Image.open(io.BytesIO(img_data))
+            if tessdata_dir.exists():
+                page_text = pytesseract.image_to_string(img, lang=ocr_lang, config=custom_config)
+            else:
+                page_text = pytesseract.image_to_string(img, lang=ocr_lang)
+            text_content += f"\n\n--- Page {i+1} ---\n\n" + page_text
+        doc.close()
+    except Exception as e:
+        print(f"      -> [OCR Error] Failed to OCR pdf: {e}")
+    return text_content.strip()
+
 def main():
     app_dir = Path(__file__).parent
     base_dir = app_dir.parent
@@ -209,7 +238,12 @@ def main():
         # Check duplicate via hash
         file_hash = get_file_hash(file_path)
         if file_hash in history_data:
-            print(f"  -> [Info] Duplicate file detected. Already converted and uploaded. (Skipping)")
+            print(f"  -> [Info] Duplicate file detected. Moving to '{processed_dir.name}' folder and skipping...")
+            dest_path = processed_dir / file_path.name
+            if dest_path.exists():
+                import time
+                dest_path = processed_dir / f"{file_path.stem}_{int(time.time())}{file_path.suffix}"
+            shutil.move(str(file_path), str(dest_path))
             continue
             
         md_file_path = app_dir / f"{file_path.stem}.md"
@@ -219,8 +253,20 @@ def main():
             print(f"  - Converting to Markdown...")
             result = md.convert(str(file_path))
             md_content = result.text_content
+            
+            # Local OCR Fallback for empty/short scanned PDFs
+            if (not md_content or len(md_content.strip()) < 50) and file_path.suffix.lower() == '.pdf':
+                print("  - [Info] No readable text found. Falling back to Local OCR...")
+                ocr_lang_setting = config.get('OCR_LANG', 'eng+kor') if config else 'eng+kor'
+                ocr_text = extract_text_with_ocr(str(file_path), ocr_lang=ocr_lang_setting)
+                if ocr_text:
+                    md_content = ocr_text
+                    print("  - [Success] Local OCR extracted text successfully.")
+                else:
+                    print("  - [Warning] Local OCR also failed to extract text.")
+
             with open(md_file_path, 'w', encoding='utf-8') as f:
-                f.write(md_content)
+                f.write(md_content if md_content else "")
                 
             # Upload
             print(f"  - Uploading to Google Drive '{DRIVE_FOLDER_NAME}' folder...")
